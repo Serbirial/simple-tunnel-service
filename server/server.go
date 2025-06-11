@@ -1,12 +1,15 @@
-package server
+package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type AuthRequest struct {
@@ -19,6 +22,36 @@ var (
 	serviceSecrets map[string]string
 	globalSecret   string
 )
+
+func getPortFromFile(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", fmt.Errorf("failed to open port file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		portStr := strings.TrimSpace(scanner.Text())
+		portNum, err := strconv.Atoi(portStr)
+		if err != nil || portNum < 1 || portNum > 65535 {
+			return "", fmt.Errorf("invalid port number in file: %s", portStr)
+		}
+
+		// Check if port is free by trying to listen on it
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", portNum))
+		if err != nil {
+			return "", fmt.Errorf("port %d is already in use or unavailable", portNum)
+		}
+		ln.Close()
+
+		return portStr, nil
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading port file: %w", err)
+	}
+	return "", fmt.Errorf("port file is empty")
+}
 
 func loadServiceSecrets(path string) error {
 	data, err := os.ReadFile(path)
@@ -45,9 +78,12 @@ func main() {
 	if err := loadGlobalSecret("secret.txt"); err != nil {
 		log.Fatalln("Missing required secret.txt:", err)
 	}
-
-	log.Println("Server listening on :7000 for tunnel connections")
-	go listenForClients(":7000")
+	port, err := getPortFromFile("port.txt")
+	if err != nil {
+		log.Fatalf("Error reading port: %v", err)
+	}
+	log.Printf("Server listening on :%s for tunnel connections", port)
+	go listenForClients(":" + port)
 	select {}
 }
 
