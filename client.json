@@ -1,0 +1,17 @@
+{
+  "server_address": "your.server.ip:7000",
+  "services": [
+    {
+      "service_name": "service1",
+      "public_port": 9000,
+      "local_address": "localhost:8080",
+      "secret": "service1_secret_123"
+    },
+    {
+      "service_name": "ssh",
+      "public_port": 9002,
+      "local_address": "localhost:22",
+      "secret": "ssh_secret_456"
+    }
+  ]
+}
